@@ -1,10 +1,10 @@
-import { getSessionToken, makeRequest } from '@modules/common/utils'
+import { getLocalStoreToken, makeRequest } from '@modules/common/utils'
 
 export const fetchUser = async () => {
   try {
-    const token = getSessionToken()
+    const token = getLocalStoreToken()
     const response: any = await makeRequest({
-      method: 'GET',
+      method: 'POST',
       url: 'auth/me',
       displayAlert: false,
       token,
