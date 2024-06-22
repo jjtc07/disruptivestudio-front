@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Inter } from 'next/font/google'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -39,6 +39,8 @@ const PostsPage = () => {
   const [posts, setPosts] = useState<Post[]>([])
   const [themes, setThemes] = useState<Theme[]>([])
 
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
     const getThemes = async () => {
       const response = await fetchThemes()
@@ -52,9 +54,14 @@ const PostsPage = () => {
   useEffect(() => {
     const getAllPosts = async () => {
       try {
-        const themeId = router?.query?.themeId
+        const themeId = router?.query?.themeId as unknown as string
+        const search = router?.query?.search as unknown as string
 
-        const response = await fetchPosts(themeId)
+        const response = await fetchPosts({ themeId, search })
+
+        if (searchInputRef.current && search) {
+          searchInputRef.current.value = search
+        }
 
         setPosts(response)
       } catch (error) {
@@ -65,19 +72,47 @@ const PostsPage = () => {
     if (router.isReady) {
       getAllPosts()
     }
-  }, [router.query.themeId, router.isReady])
+  }, [router.query.themeId, router.query.search, router.isReady])
 
   const handleThemeFilter = (theme: any) => {
     router.push({
       pathname: '/',
-      query: { themeId: theme._id },
+      query: {
+        ...router.query,
+        themeId: theme._id,
+      },
     })
   }
 
   const handleClearFilter = () => {
+    delete router.query.themeId
+
     router.push({
       pathname: '/',
+      query: {
+        ...router.query,
+      },
     })
+  }
+
+  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = event.target
+
+    if (Boolean(value)) {
+      const query = { ...router.query, search: value }
+
+      router.push({
+        pathname: '/',
+        query,
+      })
+    } else {
+      delete router.query.search
+
+      router.push({
+        pathname: '/',
+        query: { ...router.query },
+      })
+    }
   }
 
   return (
@@ -90,6 +125,15 @@ const PostsPage = () => {
           <h1 className="text-4xl font-bold text-white">
             {posts.length} Publicaciones
           </h1>
+          <div className="flex flex-1 items-center">
+            <input
+              type="text"
+              placeholder="Buscar por título"
+              className="w-full mx-8 px-4 py-2 rounded-md bg-gray-700 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={handleSearch}
+              ref={searchInputRef}
+            />
+          </div>
 
           <h1 className="text-xl font-bold text-white">
             {themes.length} Temáticas
@@ -122,6 +166,7 @@ const PostsPage = () => {
             ))}
           </div>
         </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:cols-3 lg:grid-cols-4 gap-8">
           {posts.map((post) => (
             <div

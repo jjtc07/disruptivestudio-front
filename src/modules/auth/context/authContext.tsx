@@ -48,7 +48,7 @@ export function AuthProvider({ children }: Props) {
 
       getUser()
     }
-  }, [isReady, isAuth, replace])
+  }, [isReady, isAuth])
 
   const getUser = async () => {
     setIsLoading(true)

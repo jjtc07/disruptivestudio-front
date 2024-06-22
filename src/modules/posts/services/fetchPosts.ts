@@ -1,12 +1,20 @@
 import { getLocalStoreToken, makeRequest } from '@modules/common/utils'
 
-export const fetchPosts = async (themeId?: string | string[]) => {
+export const fetchPosts = async (query: {
+  themeId?: string
+  search?: string
+}) => {
   try {
     const token = getLocalStoreToken()
     let url = 'posts'
 
-    if (themeId) {
-      url = `posts?themeId=${themeId}`
+    const filteredQuery = Object.fromEntries(
+      Object.entries(query).filter(([_, value]) => value !== undefined)
+    )
+    const queryParams = new URLSearchParams(filteredQuery).toString()
+
+    if (Boolean(queryParams)) {
+      url = `posts?${queryParams}`
     }
 
     const response: any = await makeRequest({
