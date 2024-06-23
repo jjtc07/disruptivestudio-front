@@ -12,6 +12,6 @@ export const fetchThemes = async () => {
 
     return response.data
   } catch (err) {
-    return []
+    throw err
   }
 }

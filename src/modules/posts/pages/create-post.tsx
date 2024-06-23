@@ -3,9 +3,7 @@ import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
 import * as Yup from 'yup'
 import { Inter } from 'next/font/google'
-import Image from 'next/image'
 import { useRouter } from 'next/router'
-import { makeRequest } from '@modules/common/utils'
 import { useAuth } from '@modules/auth/context'
 import { fetchThemes } from '@modules/themes/services'
 import { createPostService } from '../services/createPost'
@@ -15,8 +13,8 @@ const inter = Inter({ subsets: ['latin'] })
 interface Post {
   title: string
   description: string
-  themes: Array<string> // id de los themes a los que el post esta relacionado
-  cover: any // este es un archivo de imagen que se adjunta y lo recibe el backend
+  themes: Array<string>
+  cover: any
 }
 
 interface Theme {
@@ -69,9 +67,6 @@ const CreatePostPage = () => {
   })
 
   const onSubmit = async (data: Post) => {
-    console.log({ data, selectedThemes })
-
-    // return data
     try {
       setIsSubmitting(true)
 
@@ -81,11 +76,6 @@ const CreatePostPage = () => {
       selectedThemes.forEach((theme) => formData.append('themes', theme))
       formData.append('cover', coverImage as Blob)
 
-      // await makeRequest({
-      //   method: 'POST',
-      //   url: 'api/v1/posts',
-      //   data: formData,
-      // })
       await createPostService(formData)
 
       router.push('/')
@@ -214,7 +204,7 @@ const CreatePostPage = () => {
               onChange={handleCoverImageChange}
             />
 
-            {errors.cover && (
+            {errors?.cover?.message && (
               <p className="text-red-500 text-xs italic">
                 {errors.cover.message}
               </p>
