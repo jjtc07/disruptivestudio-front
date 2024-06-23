@@ -1,5 +1,3 @@
-import { ACCESS_TOKEN } from '@modules/common/utils'
-import { useRouter } from 'next/router'
 import {
   createContext,
   ReactNode,
@@ -8,6 +6,9 @@ import {
   useEffect,
   useState,
 } from 'react'
+import { useRouter } from 'next/router'
+
+import { ACCESS_TOKEN } from '@modules/common/utils'
 import { fetchUser } from '../services/fetchUser'
 import { IUser, IUserSignIn } from '../interfaces'
 
@@ -16,6 +17,7 @@ type authContextType = {
   isAuth: boolean
   isLoading: boolean
   login: (user: IUserSignIn) => void
+  logout: () => void
 }
 
 type Props = {
@@ -27,6 +29,7 @@ const authContextDefaultValues: authContextType = {
   isAuth: false,
   isLoading: true,
   login: (user: IUserSignIn) => {},
+  logout: () => {},
 }
 const AuthContext = createContext<authContextType>(authContextDefaultValues)
 
@@ -73,12 +76,20 @@ export function AuthProvider({ children }: Props) {
     push('/')
   }
 
+  const logout = async () => {
+    localStorage.removeItem(ACCESS_TOKEN)
+    setUser(null)
+
+    push('/sign-in')
+  }
+
   const value = {
     user,
     isAuth,
     isLoading,
     getToken,
     login,
+    logout,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

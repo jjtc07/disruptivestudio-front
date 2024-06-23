@@ -1,4 +1,4 @@
-import PostDetail from '@modules/posts/pages/postDetails'
+import PostDetail from '@modules/posts/pages/post-details'
 import { makeRequest } from '@modules/common/utils'
 
 export async function getServerSideProps(context: any) {

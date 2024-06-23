@@ -11,7 +11,7 @@ export const fetchUser = async () => {
     })
 
     if (response.data) {
-      return response.data
+      return response?.data?.user
     } else {
       return null
     }
