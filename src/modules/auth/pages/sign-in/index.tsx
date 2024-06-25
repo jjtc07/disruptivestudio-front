@@ -1,36 +1,29 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as Yup from 'yup'
 import { Inter } from 'next/font/google'
 import Link from 'next/link'
 import { FaEye, FaEyeSlash } from 'react-icons/fa'
 import { makeRequest } from '@modules/common/utils'
 import { useAuth } from '@modules/auth/context'
+import { useRouter } from 'next/router'
+import { signInValidationSchema } from '@modules/auth/utils'
 
 const inter = Inter({ subsets: ['latin'] })
 
 const SignInPage = () => {
-  const { login } = useAuth()
+  const { login, user } = useAuth()
+  const router = useRouter()
 
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState('')
-
-  const validationSchema = Yup.object().shape({
-    email: Yup.string()
-      .required('El correo electrónico es obligatorio')
-      .email('El correo electrónico no es válido'),
-    password: Yup.string()
-      .required('La contraseña es obligatoria')
-      .min(5, 'La contraseña debe tener al menos 5 caracteres'),
-  })
 
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
   } = useForm({
-    resolver: yupResolver(validationSchema),
+    resolver: yupResolver(signInValidationSchema),
   })
 
   const onSubmit = async (data: any) => {
@@ -51,6 +44,11 @@ const SignInPage = () => {
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword)
+  }
+
+  if (user) {
+    router.replace('/')
+    return null
   }
 
   return (

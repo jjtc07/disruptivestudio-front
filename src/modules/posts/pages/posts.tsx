@@ -7,41 +7,23 @@ import { useRouter } from 'next/router'
 import { fetchPosts } from '../services'
 import { fetchThemes } from '@modules/themes/services'
 import { useAuth } from '@modules/auth/context'
-import { PermissionEnum } from '@modules/common/enums'
+import { PermissionEnum, RolesEnum } from '@modules/common/enums'
+import { IPost } from '../interfaces'
+import { ITheme } from '@modules/themes/interfaces'
 
 const inter = Inter({ subsets: ['latin'] })
 
-interface Post {
-  _id: string
-  title: string
-  cover: string
-  description: string
-  themes: Theme[]
-  createdBy: CreatedBy
-  coverUrl: string
-  id: string
-}
-
-interface Theme {
-  _id: string
-  name: string
-  coverUrl: string
-  id: string
-}
-
-interface CreatedBy {
-  _id: string
-  username: string
-  email: string
-  id: string
-}
-
 const PostsPage = () => {
   const router = useRouter()
-  const { user, logout } = useAuth()
+  const { user, logout, hasPermission, hasRole } = useAuth()
 
-  const [posts, setPosts] = useState<Post[]>([])
-  const [themes, setThemes] = useState<Theme[]>([])
+  const [posts, setPosts] = useState<IPost[]>([])
+  const [themes, setThemes] = useState<ITheme[]>([])
+  const [infoPosts, setInfoPosts] = useState<{
+    video: number
+    image: number
+    text: number
+  } | null>(null)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -67,7 +49,8 @@ const PostsPage = () => {
           searchInputRef.current.value = search
         }
 
-        setPosts(response)
+        setPosts(response.posts)
+        setInfoPosts(response.infoPosts)
       } catch (error) {
         console.error('Error fetching posts:', error)
       }
@@ -138,28 +121,61 @@ const PostsPage = () => {
       style={{ backgroundColor: 'rgb(50, 50, 50)' }}
     >
       <div className="w-full max-w-7xl">
-        <div className="mb-8 flex justify-end items-center">
-          {user && (
-            <div className="flex items-center space-x-4">
-              <span className="text-white">Usuario: {user.username}</span>
+        <div className={`mb-8  ${user ? '' : 'flex justify-end'} items-center`}>
+          {user ? (
+            <div className="flex justify-between items-center">
+              <div className="">
+                {hasRole(RolesEnum.ADMIN) && (
+                  <Link
+                    href="/themes/create"
+                    className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-700 rounded-md "
+                  >
+                    Crear temática
+                  </Link>
+                )}
+              </div>
 
-              {user.role.permissions.includes(PermissionEnum.C) && (
-                <Link
-                  href="/posts/create"
-                  className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-700 rounded-md "
+              <div className="flex items-center space-x-4">
+                <span className="text-white">Usuario: {user.username}</span>
+
+                {hasPermission([PermissionEnum.C]) && (
+                  <Link
+                    href="/posts/create"
+                    className="px-4 py-2 bg-blue-500 text-white hover:bg-blue-700 rounded-md "
+                  >
+                    Crear Publicación
+                  </Link>
+                )}
+
+                <button
+                  onClick={logout}
+                  className="bg-gray-600 text-gray-300 hover:bg-gray-500 px-4 py-2 rounded-md font-bold"
                 >
-                  Crear Publicación
-                </Link>
-              )}
-
-              <button
-                onClick={logout}
-                className="bg-gray-600 text-gray-300 hover:bg-gray-500 px-4 py-2 rounded-md font-bold"
+                  Cerrar Sesión
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/sign-in"
+                className="px-4 py-2 bg-gray-500 text-white hover:bg-gray-700 rounded-md "
               >
-                Cerrar Sesión
-              </button>
+                Iniciar sesión
+              </Link>
             </div>
           )}
+        </div>
+        <div className="mb-8 flex justify-end items-center space-x-4">
+          <span className="text-2xl font-bold text-white">
+            {infoPosts?.text} {infoPosts?.text === 1 ? 'Texto' : 'Textos'}
+          </span>
+          <span className="text-2xl font-bold text-white">
+            {infoPosts?.image} {infoPosts?.image === 1 ? 'Imagen' : 'Imagenes'}
+          </span>
+          <span className="text-2xl font-bold text-white">
+            {infoPosts?.video} {infoPosts?.video === 1 ? 'Video' : 'Videos'}
+          </span>
         </div>
         <div className="mb-8 flex justify-between items-center">
           <h1 className="text-4xl font-bold text-white">

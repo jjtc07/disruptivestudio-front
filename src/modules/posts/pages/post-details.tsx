@@ -1,41 +1,52 @@
-import React from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { Inter } from 'next/font/google'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
 
+import { TypeContentEnum } from '@modules/common/enums'
+import { getEmbeddedYouTubeURL, setRedirectCache } from '@modules/common/utils'
+import { IPost } from '../interfaces'
+import { useAuth } from '@modules/auth/context'
+
 const inter = Inter({ subsets: ['latin'] })
 
-interface Post {
-  _id: string
-  title: string
-  cover: string
-  description: string
-  themes: Theme[]
-  createdBy: CreatedBy
-  coverUrl: string
-  id: string
-}
+const PostDetailPage = ({ post }: { post: IPost }) => {
+  const { back, push } = useRouter()
+  const { user, hasPermission } = useAuth()
+  const [contentTxt, setContentTxt] = useState('')
 
-interface Theme {
-  _id: string
-  name: string
-  coverUrl: string
-  id: string
-}
+  useEffect(() => {
+    const fetchTextFileContent = async () => {
+      try {
+        const contentTxt = post.contentUrl.find(
+          (content) => content.typeContent === TypeContentEnum.TEXT
+        )
 
-interface CreatedBy {
-  _id: string
-  username: string
-  email: string
-  id: string
-}
+        if (!contentTxt?.value) {
+          return
+        }
 
-const PostDetailPage = ({ post }: { post: Post }) => {
-  const router = useRouter()
+        const response = await fetch(contentTxt?.value)
+        const text = await response.text()
+
+        setContentTxt(text)
+      } catch (error) {
+        console.error('Error al cargar el archivo txt:', error)
+      }
+    }
+
+    fetchTextFileContent()
+  }, [post.contentUrl])
 
   const handleGoBack = () => {
-    router.back()
+    back()
   }
+
+  const goToSignIn = useCallback(() => {
+    setRedirectCache(`/posts/${post._id}`)
+
+    push('/sign-in')
+  }, [post._id, push])
 
   return (
     <main
@@ -77,7 +88,61 @@ const PostDetailPage = ({ post }: { post: Post }) => {
             ))}
           </div>
         </div>
-        <div className="mb-8">
+
+        {user && hasPermission(['R']) ? (
+          post.contentUrl.map((content) => {
+            if (content.typeContent === TypeContentEnum.VIDEO) {
+              return (
+                <iframe
+                  key={content.typeContent}
+                  src={getEmbeddedYouTubeURL(content.value)}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  className="w-full h-[400px]"
+                  allowFullScreen
+                ></iframe>
+              )
+            }
+
+            if (content.typeContent === TypeContentEnum.IMAGE) {
+              return (
+                <Image
+                  key={content.typeContent}
+                  src={content.value}
+                  alt={content.typeContent}
+                  width={1280}
+                  height={720}
+                  className="w-full h-96 object-cover rounded-lg my-4"
+                />
+              )
+            }
+
+            if (content.typeContent === TypeContentEnum.TEXT) {
+              return (
+                <pre
+                  key={content.typeContent}
+                  className="bg-gray-400 text-wrap my-4 p-4"
+                >
+                  {contentTxt}
+                </pre>
+              )
+            }
+
+            return null
+          })
+        ) : (
+          <div className="items-center space-x-4 my-10">
+            <span>Hay contenido privado, para acceder a él debes</span>
+            <button
+              className="px-4 py-2 bg-gray-500 text-white hover:bg-gray-700 rounded-md"
+              onClick={goToSignIn}
+            >
+              Iniciar sesión
+            </button>
+          </div>
+        )}
+
+        <div className="my-8">
           <h2 className="text-2xl font-bold text-white mb-4">Publicado por</h2>
           <div className="flex items-center">
             <Image

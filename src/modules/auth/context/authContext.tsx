@@ -8,36 +8,45 @@ import {
 } from 'react'
 import { useRouter } from 'next/router'
 
-import { ACCESS_TOKEN } from '@modules/common/utils'
+import {
+  ACCESS_TOKEN,
+  getRedirectCache,
+  removeRedirectCache,
+} from '@modules/common/utils'
 import { fetchUser } from '../services/fetchUser'
 import { IUser, IUserSignIn } from '../interfaces'
 
-type authContextType = {
+interface AuthContextType {
   user: IUser | null
   isAuth: boolean
   isLoading: boolean
+  hasPermission: (permissions: string[]) => boolean
+  hasRole: (roleKey: string) => boolean
   login: (user: IUserSignIn) => void
   logout: () => void
 }
 
-type Props = {
+interface Props {
   children: ReactNode
 }
 
-const authContextDefaultValues: authContextType = {
+const authContextDefaultValues: AuthContextType = {
   user: null,
   isAuth: false,
   isLoading: true,
   login: (user: IUserSignIn) => {},
   logout: () => {},
+  hasPermission: () => false,
+  hasRole: () => false,
 }
-const AuthContext = createContext<authContextType>(authContextDefaultValues)
+const AuthContext = createContext<AuthContextType>(authContextDefaultValues)
 
 export function AuthProvider({ children }: Props) {
-  const { push, isReady, replace } = useRouter()
+  const { push, isReady } = useRouter()
+
   const [user, setUser] = useState<IUser | null>(null)
-  const [isAuth, setIsAuth] = useState<boolean>(false)
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isAuth, setIsAuth] = useState<boolean>(false)
 
   const getToken = useCallback(() => localStorage.getItem(ACCESS_TOKEN), [])
 
@@ -73,14 +82,39 @@ export function AuthProvider({ children }: Props) {
     setUser(user)
     setIsAuth(true)
 
-    push('/')
+    const urlRedirect = getRedirectCache()
+
+    if (urlRedirect) {
+      removeRedirectCache()
+
+      push(urlRedirect)
+    } else {
+      push('/')
+    }
   }
 
   const logout = async () => {
     localStorage.removeItem(ACCESS_TOKEN)
     setUser(null)
+    removeRedirectCache()
 
     push('/sign-in')
+  }
+
+  const hasPermission = (permissions: string[]) => {
+    if (!user || !user.role || !user.role.permissions) {
+      return false
+    }
+
+    return permissions.every((p) => user.role.permissions.includes(p))
+  }
+
+  const hasRole = (roleKey: string) => {
+    if (!user || !user?.role || user?.role?.key !== roleKey) {
+      return false
+    }
+
+    return true
   }
 
   const value = {
@@ -90,6 +124,8 @@ export function AuthProvider({ children }: Props) {
     getToken,
     login,
     logout,
+    hasPermission,
+    hasRole,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

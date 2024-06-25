@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as Yup from 'yup'
 import { Inter } from 'next/font/google'
 import { makeRequest } from '@modules/common/utils'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@modules/auth/context'
+import { signUpValidationSchema } from '@modules/auth/utils'
 
 const inter = Inter({ subsets: ['latin'] })
 
 const SignUpPage = () => {
   const router = useRouter()
+  const { user } = useAuth()
 
   const [roles, setRoles] = useState<any[]>([])
   const [serverError, setServerError] = useState('')
@@ -30,28 +32,12 @@ const SignUpPage = () => {
     fetchRoles()
   }, [])
 
-  const validationSchema = Yup.object().shape({
-    username: Yup.string()
-      .required('El nombre de usuario es obligatorio')
-      .min(4, 'El nombre de usuario debe tener al menos 4 caracteres'),
-    email: Yup.string()
-      .required('El correo electrónico es obligatorio')
-      .email('El correo electrónico no es válido'),
-    password: Yup.string()
-      .required('La contraseña es obligatoria')
-      .min(5, 'La contraseña debe tener al menos 5 caracteres'),
-    confirmPassword: Yup.string()
-      .required('Debes confirmar la contraseña')
-      .oneOf([Yup.ref('password'), null], 'Las contraseñas no coinciden'),
-    role: Yup.string().required('Debes seleccionar un rol'),
-  })
-
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
   } = useForm({
-    resolver: yupResolver(validationSchema),
+    resolver: yupResolver(signUpValidationSchema),
     mode: 'all',
   })
 
@@ -69,6 +55,11 @@ const SignUpPage = () => {
     } catch (err: any) {
       setServerError(err?.error?.message)
     }
+  }
+
+  if (user) {
+    router.replace('/')
+    return null
   }
 
   return (

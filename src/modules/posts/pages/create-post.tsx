@@ -1,44 +1,30 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { yupResolver } from '@hookform/resolvers/yup'
-import * as Yup from 'yup'
 import { Inter } from 'next/font/google'
 import { useRouter } from 'next/router'
 import { useAuth } from '@modules/auth/context'
 import { fetchThemes } from '@modules/themes/services'
 import { createPostService } from '../services/createPost'
+import { ICreatePost } from '../interfaces'
+import { ITheme } from '@modules/themes/interfaces'
+import { createPostValidationSchema } from '../utils'
 
 const inter = Inter({ subsets: ['latin'] })
 
-interface Post {
-  title: string
-  description: string
-  themes: Array<string>
-  cover: any
-}
-
-interface Theme {
-  _id: string
-  name: string
-  cover: string
-  description: string
-  categories: any[]
-  createdBy?: string
-  createdAt?: string
-  updatedAt?: string
-  __v: number
-  coverUrl: string
-  id: string
-}
-
 const CreatePostPage = () => {
-  const { user } = useAuth()
   const router = useRouter()
+  const { hasPermission } = useAuth()
 
-  const [themes, setThemes] = useState<Theme[]>([])
-  const [selectedThemes, setSelectedThemes] = useState<string[]>([])
+  const [themes, setThemes] = useState<ITheme[]>([])
+  const [selectedThemes, setSelectedThemes] = useState<ITheme[]>([])
   const [coverImage, setCoverImage] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [typeContentState, setTypeContentState] = useState<string[]>([])
+  const [serverError, setServerError] = useState('')
+  const [videoContent, setVideoContent] = useState<string>('')
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [textFiles, setTextFiles] = useState<File[]>([])
 
   useEffect(() => {
     const getThemes = async () => {
@@ -49,48 +35,72 @@ const CreatePostPage = () => {
     getThemes()
   }, [])
 
-  const validationSchema = Yup.object().shape({
-    title: Yup.string().required('El título es obligatorio'),
-    description: Yup.string().required('La descripción es obligatoria'),
-    themes: Yup.array()
-      .of(Yup.string())
-      .min(1, 'Debes seleccionar al menos un tema'),
-    cover: Yup.mixed().required('Debes seleccionar una imagen de portada'),
-  })
+  useEffect(() => {
+    const typeContentSet = new Set<string>()
+
+    for (const theme of selectedThemes) {
+      const typeContent = theme.category.typeContent
+
+      typeContentSet.add(typeContent.toLocaleLowerCase())
+    }
+
+    const typeContent = Array.from(typeContentSet)
+
+    setTypeContentState(typeContent)
+  }, [selectedThemes])
 
   const {
     register,
     handleSubmit,
     formState: { errors, isValid },
-  } = useForm<Post>({
-    resolver: yupResolver(validationSchema),
+  } = useForm<ICreatePost>({
+    resolver: yupResolver(createPostValidationSchema),
   })
 
-  const onSubmit = async (data: Post) => {
+  const onSubmit = async (data: ICreatePost) => {
     try {
       setIsSubmitting(true)
 
       const formData = new FormData()
       formData.append('title', data.title)
       formData.append('description', data.description)
-      selectedThemes.forEach((theme) => formData.append('themes', theme))
+      selectedThemes.forEach((theme) => formData.append('themes', theme._id))
       formData.append('cover', coverImage as Blob)
+
+      if (videoContent) {
+        formData.append('content', videoContent)
+      }
+
+      if (imageFiles.length > 0) {
+        imageFiles.forEach((file) => {
+          formData.append('contentFiles', file)
+        })
+      }
+
+      if (textFiles.length > 0) {
+        textFiles.forEach((file) => {
+          formData.append('contentFiles', file)
+        })
+      }
 
       await createPostService(formData)
 
+      setServerError('')
+
       router.push('/')
-    } catch (error) {
-      console.error('Error creating post:', error)
+    } catch (err: any) {
+      console.error('Error creating post:', err)
+      setServerError(err?.error?.message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleThemeSelect = (theme: Theme) => {
-    if (selectedThemes.includes(theme._id)) {
-      setSelectedThemes(selectedThemes.filter((t) => t !== theme._id))
+  const handleThemeSelect = (theme: ITheme) => {
+    if (selectedThemes.find((item) => item._id === theme._id)) {
+      setSelectedThemes(selectedThemes.filter((item) => item._id !== theme._id))
     } else {
-      setSelectedThemes([...selectedThemes, theme._id])
+      setSelectedThemes([...selectedThemes, theme])
     }
   }
 
@@ -99,6 +109,15 @@ const CreatePostPage = () => {
   ) => {
     const file = event.target.files?.[0]
     setCoverImage(file || null)
+  }
+
+  const handleGoBack = () => {
+    router.back()
+  }
+
+  if (!hasPermission(['C'])) {
+    router.replace('/401')
+    return null
   }
 
   return (
@@ -112,6 +131,30 @@ const CreatePostPage = () => {
         </h1>
 
         <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="mb-4">
+            <label
+              htmlFor="cover"
+              className="block text-gray-700 font-bold mb-2"
+            >
+              Imagen de portada
+            </label>
+            <input
+              type="file"
+              id="cover"
+              className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+                errors.cover ? 'border-red-500' : ''
+              }`}
+              {...register('cover')}
+              onChange={handleCoverImageChange}
+            />
+
+            {errors?.cover?.message && (
+              <p className="text-red-500 text-xs italic">
+                {errors.cover.message}
+              </p>
+            )}
+          </div>
+
           <div className="mb-4">
             <label
               htmlFor="title"
@@ -157,7 +200,7 @@ const CreatePostPage = () => {
             )}
           </div>
 
-          <div className="mb-4">
+          <div className="mb-6">
             <label
               htmlFor="themes"
               className="block text-gray-700 font-bold mb-2"
@@ -170,7 +213,7 @@ const CreatePostPage = () => {
                   key={theme._id}
                   type="button"
                   className={`px-4 py-2 rounded-md font-bold ${
-                    selectedThemes.includes(theme._id)
+                    selectedThemes.find((item) => item._id === theme._id)
                       ? 'bg-blue-500 text-white hover:bg-blue-700'
                       : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                   }`}
@@ -187,31 +230,93 @@ const CreatePostPage = () => {
             )}
           </div>
 
-          <div className="mb-4">
-            <label
-              htmlFor="cover"
-              className="block text-gray-700 font-bold mb-2"
-            >
-              Imagen de portada
-            </label>
-            <input
-              type="file"
-              id="cover"
-              className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
-                errors.cover ? 'border-red-500' : ''
-              }`}
-              {...register('cover')}
-              onChange={handleCoverImageChange}
-            />
+          {typeContentState.includes('video') && (
+            <div className="mb-4">
+              <label
+                htmlFor="content"
+                className="block text-gray-700 font-bold mb-2"
+              >
+                Contenido (Video)
+              </label>
+              <input
+                type="text"
+                id="content"
+                className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+                  errors.content ? 'border-red-500' : ''
+                }`}
+                placeholder="Ingresa el contenido (video)"
+                {...register('content')}
+                value={videoContent}
+                onChange={(e) => setVideoContent(e.target.value)}
+              />
+              {errors.content && (
+                <p className="text-red-500 text-xs italic">
+                  {errors.content.message}
+                </p>
+              )}
+            </div>
+          )}
 
-            {errors?.cover?.message && (
-              <p className="text-red-500 text-xs italic">
-                {errors.cover.message}
-              </p>
-            )}
-          </div>
+          {(typeContentState.includes('image') ||
+            typeContentState.includes('text')) && (
+            <div className="mb-4">
+              <label
+                htmlFor="contentFiles"
+                className="block text-gray-700 font-bold mb-2"
+              >
+                Contenido (Imagen/Texto)
+              </label>
+              <div className="flex space-x-4">
+                {typeContentState.includes('image') && (
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+                        errors.contentFiles ? 'border-red-500' : ''
+                      }`}
+                      {...register('contentFiles')}
+                      onChange={(e) =>
+                        setImageFiles(Array.from(e.target.files || []))
+                      }
+                    />
+                    {errors.contentFiles && (
+                      <p className="text-red-500 text-xs italic">
+                        {errors.contentFiles.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {typeContentState.includes('text') && (
+                  <div className="flex-1">
+                    <input
+                      type="file"
+                      accept=".txt"
+                      className={`shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline ${
+                        errors.contentFiles ? 'border-red-500' : ''
+                      }`}
+                      {...register('contentFiles')}
+                      onChange={(e) =>
+                        setTextFiles(Array.from(e.target.files || []))
+                      }
+                    />
+                    {errors.contentFiles && (
+                      <p className="text-red-500 text-xs italic">
+                        {errors.contentFiles.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-          <div className="flex justify-end">
+          {serverError && (
+            <div className="mb-4 mt-4 text-red-500 text-xs italic">
+              {serverError}
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3">
             <button
               type="submit"
               className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${
@@ -220,6 +325,13 @@ const CreatePostPage = () => {
               disabled={!isValid || isSubmitting}
             >
               Crear Publicación
+            </button>
+            <button
+              type="button"
+              className="bg-gray-700 text-gray-300 hover:bg-gray-600 px-4 py-2 rounded-md font-bold"
+              onClick={handleGoBack}
+            >
+              Cancelar
             </button>
           </div>
         </form>
