@@ -7,15 +7,31 @@ import { TypeContentEnum } from '@modules/common/enums'
 import { getEmbeddedYouTubeURL, setRedirectCache } from '@modules/common/utils'
 import { IPost } from '../interfaces'
 import { useAuth } from '@modules/auth/context'
+import { fetchPostById } from '../services'
 
 const inter = Inter({ subsets: ['latin'] })
 
-const PostDetailPage = ({ post }: { post: IPost }) => {
-  const { back, push } = useRouter()
+const PostDetailPage = () => {
+  const { back, push, query, isReady } = useRouter()
   const { user, hasPermission } = useAuth()
+  const [post, setPost] = useState<IPost | null>(null)
   const [contentTxt, setContentTxt] = useState('')
 
   useEffect(() => {
+    if (!isReady) return
+
+    const fetchPostDetails = async () => {
+      const response = await fetchPostById(query?.postId as string)
+
+      setPost(response)
+    }
+
+    fetchPostDetails()
+  }, [isReady, query])
+
+  useEffect(() => {
+    if (!post) return
+
     const fetchTextFileContent = async () => {
       try {
         const contentTxt = post.contentUrl.find(
@@ -36,17 +52,26 @@ const PostDetailPage = ({ post }: { post: IPost }) => {
     }
 
     fetchTextFileContent()
-  }, [post.contentUrl])
+  }, [post])
 
   const handleGoBack = () => {
     back()
   }
 
   const goToSignIn = useCallback(() => {
-    setRedirectCache(`/posts/${post._id}`)
+    setRedirectCache(`/posts/${post?._id}`)
 
     push('/sign-in')
-  }, [post._id, push])
+  }, [post, push])
+
+  if (!post) {
+    return (
+      <div className="flex flex-col justify-center items-center mt-10">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white-900"></div>
+        <p className="mt-4 text-white-900">Cargando...</p>
+      </div>
+    )
+  }
 
   return (
     <main
@@ -90,7 +115,7 @@ const PostDetailPage = ({ post }: { post: IPost }) => {
         </div>
 
         {user && hasPermission(['R']) ? (
-          post.contentUrl.map((content) => {
+          post?.contentUrl?.map((content) => {
             if (content.typeContent === TypeContentEnum.VIDEO) {
               return (
                 <iframe
