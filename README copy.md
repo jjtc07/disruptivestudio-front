@@ -7,7 +7,7 @@ Este es un proyecto que requiere Node.js versión 18 o superior.
 1. Clona el repositorio:
 
 ```
-git clone https://github.com/jjtc07/disruptivestudio-front.git
+git clone https://github.com/tu-usuario/tu-proyecto.git
 ```
 
 2. Instala las dependencias:
@@ -16,13 +16,15 @@ git clone https://github.com/jjtc07/disruptivestudio-front.git
 npm install
 ```
 
-3. Copia el archivo `.env.example` y renómbralo a `.env`. Luego, agrega los datos correspondientes en el archivo `.env`. Asegurarse que el proyecto en backend este en linea y colocar la url correspondiente.
+3. Copia el archivo `.env.example` y renómbralo a `.env`. Luego, agrega los datos correspondientes en el archivo `.env`.
 
-4. Para iniciar el proyecto en modo desarrollo ejecutar el script:
+4. Genera datos de prueba (seeds) para poder visualizar las funcionalidades del proyecto:
 
 ```
-npm run dev
+npm run seeds
 ```
+
+## Scripts disponibles
 
 Puedes ver los scripts disponibles en el archivo `package.json`.
 
