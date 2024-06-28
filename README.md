@@ -1,4 +1,4 @@
-# Prueba textina de DisruptiveStudio
+# Prueba técnica de DisruptiveStudio
 
 Este es un proyecto que requiere Node.js versión 18 o superior.
 
